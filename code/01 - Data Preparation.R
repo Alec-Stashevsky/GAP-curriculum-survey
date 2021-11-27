@@ -13,6 +13,7 @@ library(openxlsx)
 path.in <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Data/Survey Results from Climate Change Curriculum Survey.xlsx"
 
 path.out <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Output/"
+path.data.out <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Data/Clean/"
 
 # Import ------------------------------------------------------------------
 sheet.list <- readxl::excel_sheets(path.in)
@@ -158,5 +159,5 @@ write.xlsx(
   overwrite = TRUE
   )
 
-saveRDS(post, paste0(path.out, "post_survey_clean.RDs"))
-saveRDS(colnames.key, paste0(path.out, "question_column_key.RDs"))
+saveRDS(post, paste0(path.data.out, "post_survey_clean.RDs"))
+saveRDS(colnames.key, paste0(path.data.out, "question_column_key.RDs"))
