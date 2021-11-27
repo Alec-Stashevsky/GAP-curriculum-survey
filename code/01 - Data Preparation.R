@@ -31,6 +31,11 @@ raw.total$`Notation for more than 1 stage noted` <- as.numeric(raw.total$`Notati
 raw.pre$`Notation for more than 1 stage noted` <- as.numeric(raw.pre$`Notation for more than 1 stage noted`)
 raw.post$`Notation for more than 1 stage noted` <- as.numeric(raw.post$`Notation for more than 1 stage noted`)
 
+
+raw.total$Gender <- as.numeric(raw.total$Gender)
+raw.pre$Gender <- as.numeric(raw.pre$Gender)
+raw.post$Gender <- as.numeric(raw.post$Gender)
+
 # Remove any free response questions
 # raw.post[,
 #   .SD,
@@ -86,7 +91,7 @@ post.summary[, vars := post.colnames$V1]
 
 # Need to rename to summarize
 new.names <- c(
-  "D1", "D2", "D3", "D4", "D5",
+  "D1", "D2", "D3", "D4", "D5", "D6",
   "L1",
   "Q1",
   "L2", "L3",
