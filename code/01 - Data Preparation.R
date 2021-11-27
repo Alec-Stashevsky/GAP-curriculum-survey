@@ -157,3 +157,6 @@ write.xlsx(
   paste0(path.out, "GAP Survey - Descriptive Statistics.xlsx"),
   overwrite = TRUE
   )
+
+saveRDS(post, paste0(path.out, "post_survey_clean.RDs"))
+saveRDS(colnames.key, paste0(path.out, "question_column_key.RDs"))
