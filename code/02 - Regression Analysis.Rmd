@@ -6,7 +6,8 @@ output: pdf_document
 ---
 
 ```{r Setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+
 rm(list = ls())
 library(tidyverse)
 library(data.table)
@@ -25,6 +26,7 @@ files <- list.files(path.in)
 post <- readRDS(paste0(path.in, files[1]))
 keynames <- readRDS(paste0(path.in, files[2]))
 ```
+
 
 ## Build Regression Data
 
@@ -50,6 +52,7 @@ There is one missing value for respondent 37 on Question D4. This respondent may
 
 ## Regression Analysis - Importance of Teaching Climate Change
 
+
 ### Linear Regression
 
 We will first test run a multivariate linear regression where we treat the independent variable as continuous. Our first regression will be of the form $$L3_i = D1_i + D4_i + D5_i + D6_i + L1_i + \epsilon_i$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables.
@@ -58,13 +61,26 @@ We will first test run a multivariate linear regression where we treat the indep
 # Model 1 - we treat independent variable as continuous
 mlr1 <- lm(as.numeric(L3) ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
 mlr1.table <- broom::tidy(mlr1)
-plot(mlr1) 
+summary(mlr1)
+
+plot(mlr1, caption = list("Residuals vs Fitted", "Normal Q-Q")) 
+
+# Run ANOVA
+mlr1.anova <- anova(mlr1)
+mlr1.anova
 
 # Model 2 - we treat all Likert variables as continuous
 mlr2 <- lm(as.numeric(L3) ~ D1 + D4 + D5 + D6 + as.numeric(L1), data = reg.data)
 mlr2.table <- broom::tidy(mlr2)
-plot(mlr2)
+summary(mlr2)
+
+plot(mlr2, caption = list("Residuals vs Fitted", "Normal Q-Q"))
+
+# Run ANOVA
+mlr2.anova <- anova(mlr2)
+mlr2.anova
 ```
+
 
 ### Ordinal Logistic Regression
 
@@ -83,6 +99,7 @@ paste("Goodness of fit Chi-sq:", 1-pchisq(deviance(olr1),df.residual(olr1)))
 
 # ANOVA
 olr1.anova <- broom::tidy(Anova(olr1))
+Anova(olr1)
 
 # Add p-values to regression table
 olr1.table$p.value <- pnorm(abs(olr1.table$statistic), lower.tail = FALSE) * 2
@@ -100,23 +117,28 @@ for (p in predictors) {
 plot(effects::Effect(focal.predictors = c("D1", "L1"), mod = olr1))
 ```
 
+
 ## Regression Analysis - Effect of Video
 
 ### Linear Regression
 
-To assess the affect of the video on respondent's view on including climate change curricula, we run a multivariate linear regression where the independent variable is the change ($\Delta$) between there response before and after watching the accompanying video. We must treat this change as continuous because $\Delta_i = L3_i - L2_i$. Our regression will be of the form $$\Delta_i = D1_i + D4_i + D5_i + D6_i + L1_i + \epsilon_i$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables as previously.
+To assess the affect of the video on respondent's view on including climate change curricula, we run a multivariate linear regression where the independent variable is the change ($\Delta$) between there response before and after watching the accompanying video. We must treat this as continuous because $\Delta_i = L3_i - L2_i$. Thus, our regression will be of the form $$\Delta_i = D1_i + D4_i + D5_i + D6_i + L1_i + \epsilon_i$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables as previously.
 
 
-```{r MLR}
+```{r Delta MLR}
 # Model 1 - we treat independent variable as continuous
-mlr1 <- lm(as.numeric(L3) ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
-mlr1.table <- broom::tidy(mlr1)
-plot(mlr1) 
+mlr.delta <- lm(Delta ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
+mlr.delta.table <- broom::tidy(mlr.delta)
+summary(mlr.delta)
+plot(mlr.delta, caption = list("Residuals vs Fitted", "Normal Q-Q")) 
+
+# Run ANOVA
+mlr.delta.anova <- anova(mlr.delta)
+mlr.delta.anova
 ```
 
 
 ```{r Export}
-
 
 dev.off()
 ```
