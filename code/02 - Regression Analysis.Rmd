@@ -1,0 +1,123 @@
+---
+title: "02 - Regression Analysis"
+author: "Alec Stashevsky"
+date: "11/27/2021"
+output: pdf_document
+---
+
+```{r Setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+library(data.table)
+library(openxlsx)
+library(MASS)
+library(brant)
+library(car)
+
+path.in <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Data/Clean/"
+path.out <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Output/"
+```
+
+```{r Import, include=FALSE}
+files <- list.files(path.in)
+
+post <- readRDS(paste0(path.in, files[1]))
+keynames <- readRDS(paste0(path.in, files[2]))
+```
+
+## Build Regression Data
+
+```{r Build Regression Data}
+# Keep only columns we need and coerce as ordinal / categorical
+reg.data <- post[, .(
+  L3 = factor(L3, ordered = TRUE),
+  L2 = factor(L2, ordered = TRUE),
+  L1 = factor(L1, ordered = TRUE),
+  D1 = factor(D1, ordered = FALSE),
+  D4 = factor(D4, ordered = FALSE),
+  D5 = factor(D5, ordered = FALSE),
+  D6 = factor(D6, ordered = FALSE)
+  )][, 
+    Delta := as.numeric(L3) - as.numeric(L2)
+  ]
+
+# Explore
+summary(reg.data)
+```
+
+There is one missing value for respondent 37 on Question D4. This respondent may be dropped from the regression, lets make sure to check.
+
+## Regression Analysis - Importance of Teaching Climate Change
+
+### Linear Regression
+
+We will first test run a multivariate linear regression where we treat the independent variable as continuous. Our first regression will be of the form $$L3_i = D1_i + D4_i + D5_i + D6_i + L1_i + \epsilon_i$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables.
+
+```{r MLR}
+# Model 1 - we treat independent variable as continuous
+mlr1 <- lm(as.numeric(L3) ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
+mlr1.table <- broom::tidy(mlr1)
+plot(mlr1) 
+
+# Model 2 - we treat all Likert variables as continuous
+mlr2 <- lm(as.numeric(L3) ~ D1 + D4 + D5 + D6 + as.numeric(L1), data = reg.data)
+mlr2.table <- broom::tidy(mlr2)
+plot(mlr2)
+```
+
+### Ordinal Logistic Regression
+
+Now, we will proceed with an ordinal logistic regression of the form $$ logit(P(Y \le j)) = \beta_{j0} - \eta_1x_1 - \dotsb - \eta_px_p $$ where $Y$ is an ordinal Likert variable with $J$ categories. $P(Y \le j)$ represents the cumulative probability of $Y$ being less than or equal to a specific category $j = 1, \dotsc, J - 1$. In our case $J = 5$ and the response and predictor variables are the same as our linear regression specification.
+
+```{r Ordinal Logistic Regression}
+# Model 1 - we treat independent variable as continuous
+olr1 <- polr(L3 ~ D1 + D4 + D5 + D6 + L1, data = reg.data, Hess = TRUE)
+olr1.table <- broom::tidy(olr1)
+
+# Test the assumptions for proportional-odds
+brant(olr1)
+
+# Check goodness of fit
+paste("Goodness of fit Chi-sq:", 1-pchisq(deviance(olr1),df.residual(olr1)))
+
+# ANOVA
+olr1.anova <- broom::tidy(Anova(olr1))
+
+# Add p-values to regression table
+olr1.table$p.value <- pnorm(abs(olr1.table$statistic), lower.tail = FALSE) * 2
+
+# Diagnostic plots
+olr1.pr <- profile(olr1)
+pairs(olr1.pr)
+
+predictors <- c("D1", "D4", "D5", "D6", "L1")
+for (p in predictors) {
+  print(plot(effects::Effect(focal.predictors = c(p), mod = olr1)))
+}
+
+# Interaction effects
+plot(effects::Effect(focal.predictors = c("D1", "L1"), mod = olr1))
+```
+
+## Regression Analysis - Effect of Video
+
+### Linear Regression
+
+To assess the affect of the video on respondent's view on including climate change curricula, we run a multivariate linear regression where the independent variable is the change ($\Delta$) between there response before and after watching the accompanying video. We must treat this change as continuous because $\Delta_i = L3_i - L2_i$. Our regression will be of the form $$\Delta_i = D1_i + D4_i + D5_i + D6_i + L1_i + \epsilon_i$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables as previously.
+
+
+```{r MLR}
+# Model 1 - we treat independent variable as continuous
+mlr1 <- lm(as.numeric(L3) ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
+mlr1.table <- broom::tidy(mlr1)
+plot(mlr1) 
+```
+
+
+```{r Export}
+
+
+dev.off()
+```
+
