@@ -157,7 +157,7 @@ olr1.anova <- broom::tidy(Anova(olr1))
 Anova(olr1)
 ```
 
-The above ANOVA table uses type II SS to attribute variability explained by the predictors in order of their specification in the model. Here we see $L1$ explains a significant portion of *remaining residual variability* of $L3$ (at the 99% confidence level) after controlling for variability explained the previous predictors.
+The above ANOVA table uses type II SS to attribute variability explained by the predictors in order of their specification in the model. Here we see $L1$ explains a significant portion of *remaining residual variability* of $L3$ (at the 99% confidence level) after controlling for variability explained the previous predictors. $D4$ also significantly explains a portion of the residual variance of $L3$ at the 90% confidence level.
 
 The interpretation of ordinal logistic regression is quite complex. To aid in the interpretation I have provided an additional packet of plots which illustrate the effects of predictor variables on each level of the independent variable in the `OLR Diagnostics.pdf` file. These effects plots are built by holding all variables constant at their most probable values (usually means) except one predictor of choice. This predictor is then "wiggled" and impact on the independent variable $L3$ is measured for each level separately. Additionally, I provide one *interaction effects* plot, which "wiggles" both $D1$ and $L1$. I have refrained from providing every permutation of interaction effects to keep it simpler, but I can provide additional, more complex interaction effects plot which you may be interested in. 
 
@@ -190,7 +190,7 @@ dev.off()
 
 ### Linear Regression
 
-To assess the affect of the video on respondent's view on including climate change curricula, we run a multivariate linear regression where the independent variable is the change ($\Delta$) between the response before and after watching the accompanying video. We must treat this as continuous because $\Delta = L3 - L2$. Thus, our regression will be of the form, $$\Delta = D1 + D4 + D5 + D6 + L1 + \epsilon$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables as previously specified.
+To assess the affect of the video on respondent's view on including climate change curricula, we run a multivariate linear regression where the independent variable is the change ($\Delta$) between the response before and after watching the accompanying video. We must treat this as continuous because $\Delta = L3 - L2$. Thus, our regression will be of the form, $$\Delta = \beta_0 + \beta_1D1 + \beta_2D4 + \beta_3D5 + \beta_4D6 + \beta_5L1 + \epsilon$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables as previously specified.
 
 The results from the model are output below:
 
@@ -227,8 +227,3 @@ plot(mlr.delta.tukey)
 ```
 
 Here we see that there are no significant differences between the means in any of the predictor variables.
-
-```{r Export}
-# Export keynames table
-openxlsx::write.xlsx(keynames, "Variable Keynames.xlsx", overwrite = TRUE)
-```
