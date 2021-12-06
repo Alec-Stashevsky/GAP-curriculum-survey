@@ -48,3 +48,8 @@ po/*~
 ### R.Bookdown Stack ###
 # R package: bookdown caching files
 /*_files/
+
+
+
+### GAP Project Files ###
+*.xlsx
