@@ -59,6 +59,8 @@ pre.reg.data <- pre[, .(
   D6 = factor(D6, ordered = FALSE)
   )]
 
+pre.reg.data$D4 <- relevel(pre.reg.data$D4, ref = 2)
+
 # Explore
 summary(reg.data)
 summary(pre.reg.data)
