@@ -53,8 +53,6 @@ reg.data <- post[, .(
 summary(reg.data)
 ```
 
-There is one missing value for respondent 37 on Question D4. This respondent may be dropped from the regression, lets make sure to check.
-
 
 ## Regression Analysis - Importance of Teaching Climate Change
 
@@ -122,7 +120,7 @@ The ANOVA of the alternative specification yields quantitatively similar results
 
 ### Ordinal Logistic Regression
 
-Now, we will proceed with an ordinal logistic regression of the form, $$ logit(P(Y \le j)) = \beta_{j0} - \eta_1x_1 - \dotsb - \eta_px_p $$ where $Y$ is an ordinal Likert variable with $J$ categories. $P(Y \le j)$ represents the cumulative probability of $Y$ being less than or equal to a specific category $j = 1, \dotsc, J - 1$. In our case $J = 5$ and the response and predictor variables are the same as our linear regression specification. Note that we longer have $\beta$ coefficients, but rather $\eta$ coefficients which are of opposite sign. Thus, a positive $\eta$ coefficient actually indicates a lower log-odds probability and vice versa.
+Now, we will proceed with an ordinal logistic regression of the form, $$ logit(P(L3 \le j)) = \beta_{j0} - \eta_1D1 - \eta_2D4 - \eta_3D5 - \eta_4D6 - \eta_1L1 $$ where $Y$ is an ordinal Likert variable with $J$ categories. $P(Y \le j)$ represents the cumulative probability of $Y$ being less than or equal to a specific category $j = 1, \dotsc, J - 1$. In our case $J = 5$ and the response and predictor variables are the same as our linear regression specification. Note that we longer have $\beta$ coefficients, but rather $\eta$ coefficients which are of opposite sign. Thus, a positive $\eta$ coefficient actually indicates a lower log-odds probability and vice versa.
 
 ```{r Ordinal Logistic Regression}
 # Model 1 - we treat independent variable as continuous

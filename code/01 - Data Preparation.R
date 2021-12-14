@@ -36,11 +36,43 @@ raw.total$Gender <- as.numeric(raw.total$Gender)
 raw.pre$Gender <- as.numeric(raw.pre$Gender)
 raw.post$Gender <- as.numeric(raw.post$Gender)
 
-# Remove any free response questions
-# raw.post[,
-#   .SD,
-#   .SDcols = !grep("Free Response:", colnames(raw.post), ignore.case = TRUE)
-#   ]
+
+# Pre Survey Processing ---------------------------------------------------
+
+# Remove anything after completion of pre-survey
+pre <- raw.pre[, c(19:ncol(raw.pre)) := NULL][`Completed Pre-survey` == 1]
+
+# Filter to numeric columns
+pre <- pre[, .SD, .SDcols = is.numeric]
+
+pre[, `:=`(
+  `Record ID` = NULL,
+  `Completed Information Sheet` = NULL,
+  `Academic Stage` = NULL,
+  `Notation for more than 1 stage noted` = NULL,
+  `Completed Demographics` = NULL,
+  `Completed Pre-survey` = NULL
+)]
+
+# Enforce inclusion criteria, remove non Residents/Fellows or PDs
+pre <- pre[`Academic stage consolidated` != 0]
+
+# There is one missing `Region` for `Record ID == 52`, should be 1.
+pre[is.na(Region)]$Region <- 1
+
+pre.colnames <- data.table(colnames(pre))
+
+pre.new.names <- c(
+  "D1", "D2", "D3", "D4", "D5", "D6",
+  "L1",
+  "Q1",
+  "L2"
+)
+
+setnames(pre, pre.new.names)
+
+
+# Post Survey Processing --------------------------------------------------
 
 # Filter to numeric columns
 post <- raw.post[, .SD, .SDcols = is.numeric]
@@ -55,6 +87,12 @@ post[, `:=`(
   `Completed vidoe module` = NULL,
   `Completed post-survey` = NULL
 )]
+
+# Enforce inclusion criteria, remove non Residents/Fellows or PDs
+post <- post[`Academic stage consolidated` != 0]
+
+# There is one missing `Region` for `Record ID == 52`, should be 1.
+post[is.na(Region)]$Region <- 1
 
 post.colnames <- data.table(colnames(post))
 
@@ -78,6 +116,66 @@ normality.tests[, p.value := as.numeric(p.value)][p.value <= 0.05]
 
 
 # Descriptive Stats -------------------------------------------------------
+
+#### Pre-Survey ####
+
+# Pairwise correlations
+cormat.tables.pre <- lapply(
+  Hmisc::rcorr(as.matrix(pre)), data.table
+)
+
+# Shape of response distributions
+pre.summary <- data.table(psych::describe(pre, quant = c(0.01, 0.25, 0.75, 0.99)))
+pre.summary[, vars := pre.colnames$V1]
+
+# Initialization
+count.list.pre <- vector(mode = "list", length = length(colnames(pre)))
+colnames.key.pre <- data.table("Names" = pre.colnames, "Code" = pre.new.names)
+j <- 1
+
+# Get counts and proportions for each column
+for (col in colnames(pre)) {
+
+  # Extract counts and props
+  count.list.pre[[j]] <- pre[, .("N" = as.numeric(.N)), by = c(col)][,
+    "Prop" := N/sum(N)]
+
+  # Order by response values
+  setorderv(count.list.pre[[j]], col)
+
+  # Set to original names (need to do this to call in loop)
+  setnames(count.list.pre[[j]], old = col, new = colnames.key.pre[j]$Names.V1)
+
+  # Increment index
+  j <- j + 1
+
+}
+
+# Set list names for writing to excel
+names(count.list.pre) <- pre.new.names
+
+# Initialize
+Value <- count.list.pre[[1]]$`Academic stage consolidated`
+N <- count.list.pre[[1]]$N
+Prop <- count.list.pre[[1]]$Prop
+
+for (i in 2:length(count.list.pre)) {
+
+  Value <- c(Value, count.list.pre[[i]][, c(1)])
+  N <- c(N, count.list.pre[[i]][, c(2)])
+  Prop <- c(Prop, count.list.pre[[i]][, c(3)])
+
+}
+
+count.table.pre <- data.table(
+  "Question" = rep(pre.colnames$V1, sapply(count.list.pre, nrow)),
+  "Value" = unlist(Value),
+  "N" = unlist(N),
+  "Prop" = unlist(Prop)
+)
+
+
+#### Post-Survey ####
 
 # Pairwise correlations
 cormat.tables<- lapply(
@@ -149,6 +247,15 @@ count.table <- data.table(
   )
 
 # Export ------------------------------------------------------------------
+export.list.pre = list(
+  "Response Distribution" = pre.summary,
+  "Counts and Proportions" = count.table.pre,
+  "Correlation" = cormat.tables.pre$r,
+  "Correlation Counts" = cormat.tables.pre$n,
+  "Correlation P-value" = cormat.tables.pre$P
+)
+
+
 export.list = list(
   "Response Distribution" = post.summary,
   "Counts and Proportions" = count.table,
@@ -159,10 +266,17 @@ export.list = list(
 )
 
 write.xlsx(
-  export.list,
-  paste0(path.out, "GAP Survey - Descriptive Statistics.xlsx"),
+  export.list.pre,
+  paste0(path.out, "GAP Survey - Pre-Survey Descriptive Statistics.xlsx"),
   overwrite = TRUE
   )
 
+write.xlsx(
+  export.list,
+  paste0(path.out, "GAP Survey - Post-Survey Descriptive Statistics.xlsx"),
+  overwrite = TRUE
+)
+
+saveRDS(pre, paste0(path.data.out, "pre_survey_clean.RDs"))
 saveRDS(post, paste0(path.data.out, "post_survey_clean.RDs"))
 saveRDS(colnames.key, paste0(path.data.out, "question_column_key.RDs"))

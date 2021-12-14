@@ -1,0 +1,256 @@
+---
+title: "02 - Regression Analysis"
+author: "Alec Stashevsky"
+date: "12/05/2021"
+output: pdf_document
+---
+
+```{r Setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
+rm(list = ls())
+library(tidyverse)
+library(data.table)
+library(openxlsx)
+library(MASS)
+library(brant)
+library(car)
+
+path.in <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Data/Clean/"
+path.out <- "C:/Users/Alec/Documents/GAP Research/GAP Curriculum Survey/Output/"
+```
+
+```{r Import, include=FALSE}
+files <- list.files(path.in)
+
+post <- readRDS(paste0(path.in, files[1]))
+pre <- readRDS(paste0(path.in, files[2]))
+keynames <- readRDS(paste0(path.in, files[3]))
+colnames(keynames) <- c("Question", "Coded As:")
+```
+
+
+## Build Regression Data
+
+To simplify the analysis, each variable of interest has been coded as either D*X* or L*X* to indicate either a categorical demographic variable or a ordinal Likert-scale variable, respectively. Please refer to the `Variable Keynames.xlsx` file to find the specific question encoded by the variable name. Delta is a continuous variable which measures the difference between $L3$ and $L2$, discussed more in the second regression section.
+
+A count summary of regression data is provided in the output below:
+
+```{r Build Regression Data}
+# Keep only columns we need and coerce as ordinal / categorical
+reg.data <- post[, .(
+  L3 = factor(L3, ordered = TRUE),
+  L2 = factor(L2, ordered = TRUE),
+  L1 = factor(L1, ordered = TRUE),
+  D1 = factor(D1, ordered = FALSE),
+  D4 = factor(D4, ordered = FALSE),
+  D5 = factor(D5, ordered = FALSE),
+  D6 = factor(D6, ordered = FALSE)
+  )][, 
+    Delta := as.numeric(L3) - as.numeric(L2)
+  ]
+
+pre.reg.data <- pre[, .(
+  L2 = factor(L2, ordered = TRUE),
+  L1 = factor(L1, ordered = TRUE),
+  D1 = factor(D1, ordered = FALSE),
+  D4 = factor(D4, ordered = FALSE),
+  D5 = factor(D5, ordered = FALSE),
+  D6 = factor(D6, ordered = FALSE)
+  )]
+
+# Explore
+summary(reg.data)
+summary(pre.reg.data)
+```
+
+
+## Regression Analysis - Importance of Teaching Climate Change
+
+### Linear Regression
+
+
+We will first test a multivariate linear regression where we treat the independent variable as continuous. Our first regression will be of the form, $$L2 = \beta_0 + \beta_1D1 + \beta_2D4 + \beta_3D5 + \beta_4D6 + \beta_5L1 + \epsilon$$ where D*X* indicates categorical demographic variables and $L1$ is an ordinal Likert scale variable. Note: $L2$ must be continuous for to perform a linear regression.
+
+The output of the regression is summarized below.
+
+```{r MLR 1}
+# Model 1 - we treat independent variable as continuous
+mlr1 <- lm(as.numeric(L2) ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
+
+# Diagnostic plots
+plot(mlr1, which = c(1, 2))
+
+# Summarize model output
+mlr1.table <- broom::tidy(mlr1)
+summary(mlr1)
+```
+
+Here we can see the linear (.L) contrast of our Likert predictor is significant at the 1% level and indicates a *positive linear* trend on the response to question L2.
+
+The above output provides $\beta$ coefficients for *each level* of the categorical and ordinal predictors. For example, $D12$ indicates the output for respondents who are coded as *2* on question $D1$. This group includes respondents who identified as Program Directors. The first level of each factor is omitted as a base comparison. So, the coefficient estimate for $D12 = -0.95$ indicates that a respondent who identified as Program Director will have an average 0.95 *decrease* in their response to question $L2$ as compared to the respondents who identified as Residents/Fellows for question $D1$. This group is the omitted level, $D11$. 
+
+To test the effect of a predictor at the factor-level, an analysis of variance (ANOVA) is run on the model and summarized below.
+
+```{r MLR 1 ANOVA}
+# Run ANOVA
+mlr1.anova <- anova(mlr1)
+mlr1.anova
+```
+
+ANOVA estimates using type I SS tell us how much of the variability in $L2$ can be explained by our predictor variables *in sequential order.* This means we first measure the variability of $L2$ that is explained by $D1$, then how much of the *residual variability* can be explained by $D4$, how much of the *remaining residual variability* can be explained by $D5$, and so on, in order of their specification in the model.
+
+The output above indicates that the variability of $D1$ explains a significant portion of the variability in $L2$ at the 99% confidence level. Additionally, the *remaining residual variability* is signicantly explained by all the variables except $D6$.
+
+We run an additional specification identical to the model above except $L1$ is treated as a continuous variable to be consistent with the treatment of $L2$, which is required to be continuous in the context of linear regression. That output is summarized below.
+
+```{r MLR 2}
+# Model 2 - we treat all Likert variables as continuous
+mlr2 <- lm(as.numeric(L2) ~ D1 + D4 + D5 + D6 + as.numeric(L1), data = reg.data)
+mlr2.pre <- lm(as.numeric(L2) ~ D1 + D4 + D5 + D6 + as.numeric(L1), data = pre.reg.data)
+
+# Diagnostic plots
+plot(mlr2, which = c(1, 2))
+plot(mlr2.pre, which = c(1, 2))
+
+# Summarize model outputs
+mlr2.table <- broom::tidy(mlr2)
+mlr2.table.pre <- broom::tidy(mlr2.pre)
+summary(mlr2)
+summary(mlr2.pre)
+```
+
+Here we see that when the Likert variable $L1$ is specified as continuous, it's effect is consistent with the ordinal specification in the first regression. However, we lose significance in $D12$ and $D52$.
+
+We build an ANOVA table for this second model, summarized below.
+
+```{r MLR 2 ANOVA}
+# Run ANOVA
+mlr2.anova <- anova(mlr2)
+mlr2.anova.pre <- anova(mlr2.pre)
+mlr2.anova
+mlr2.anova.pre
+```
+
+The ANOVA of the alternative specification yields quantitatively similar results with $D1$ and $L1$ explaining a significant portion of the variation of $L2$ at the 95% and 99% confidence levels, respectively. This is consistent with the first specification.
+
+
+### Ordinal Logistic Regression
+
+Now, we will proceed with an ordinal logistic regression of the form, $$ logit(P(L2 \le j)) = \beta_{j0} - \eta_1D1 - \eta_2D4 - \eta_3D5 - \eta_4D6 - \eta_1L1 $$ where $Y$ is an ordinal Likert variable with $J$ categories. $P(Y \le j)$ represents the cumulative probability of $Y$ being less than or equal to a specific category $j = 1, \dotsc, J - 1$. In our case $J = 5$ and the response and predictor variables are the same as our linear regression specification. Note that we longer have $\beta$ coefficients, but rather $\eta$ coefficients which are of opposite sign. Thus, a positive $\eta$ coefficient actually indicates a lower log-odds probability and vice versa.
+
+```{r Ordinal Logistic Regression}
+# Model 1 - we treat independent variable as continuous
+olr1 <- polr(L2 ~ D1 + D4 + D5 + D6 + L1, data = reg.data, Hess = TRUE)
+olr1.table <- broom::tidy(olr1)
+
+# Add p-values to regression table
+olr1.table$fake.p.value <- pnorm(abs(olr1.table$statistic), lower.tail = FALSE) * 2
+
+# summary(olr1)
+olr1.table
+```
+
+Ordinal logistic regression does not operate on the same normality assumptions as linear regression, rendering p-values spurious. I have nonetheless calculated p-values based on the test statistics, but these should be taken with a grain of salt. In the interpretation that follow, I focus on variables which have a relatively large test statistic (and therefore relatively small, but spurious, p-values). 
+
+The results from the ordinal logistic regression show that for respondents who identified as Program Directors, the log odds of answering 0 compared to 1, or 1 compared to 2 on $L2$ are 2.56 points *higher* compared to Residents/Fellows. That is, Program Directors are more likely to attribute less importance to the inclusion of education on climate change and mental health, compared to Residents/Fellows. 
+
+Similarly, we see that there is relatively high test-statistic on $D44$. This shows us that respondents from the SE region have a logs odds of answering 0 compared to 1, or 1 compared to 2, etc., are 3.12 points *higher* than respondents from the NE region. That is, respondents from the SE region are *more likely* to attribute less importance to the inclusion of education on climate change and mental health, compared to respondents from the NE Region.
+
+We observe a significant effect on $D52$, which can be interpreted analogously to the variables above.
+
+Lastly, we notice a significant effect on $L1.L$. Similarly, this shows us that the more worried a respondent is about climate change, the less likely they are to attribute less importance to the inclusion of education on climate change and mental health. That is, the more worries a respondent is about climate change, the more likely they are to attribute importance to includsion of climate change curricula. 
+
+
+```{r Test OLR Assumptions, include=FALSE}
+# Test the assumptions for proportional-odds
+brant(olr1)
+
+# Check goodness of fit
+paste("Goodness of fit Chi-sq:", 1-pchisq(deviance(olr1),df.residual(olr1)))
+```
+
+
+As with our linear regression models, I perform an ANOVA to test the effects agnostic of the factor level.
+
+```{r OLR ANOVA}
+# ANOVA
+olr1.anova <- broom::tidy(Anova(olr1))
+Anova(olr1)
+```
+
+The above ANOVA table uses type II SS to attribute variability explained by the predictors in order of their specification in the model. Here we see similar results, qualitatively, to our linear regression ANOVAs. All of the variables in the model expect $D6$ explain a significant portion of the variability in $L2$ at or beyond the 95% confidence level.
+
+The interpretation of ordinal logistic regression is quite complex. To aid in the interpretation I have provided an additional packet of plots which illustrate the effects of predictor variables on each level of the independent variable in the `OLR Diagnostics - L2.pdf` file. These effects plots are built by holding all variables constant at their most probable values (usually means) except one predictor of choice. This predictor is then "wiggled" and impact on the independent variable $L2$ is measured for each level separately. Additionally, I provide one *interaction effects* plot, which "wiggles" both $D1$ and $L1$. I have refrained from providing every permutation of interaction effects to keep it simpler, but I can provide additional, more complex interaction effects plot which you may be interested in. 
+
+```{r OLR Plots, include=FALSE}
+# Diagnostic plots - do not include in PDF
+olr1.pr <- profile(olr1)
+pairs(olr1.pr, cex.labels = 0.5)
+
+# Print these plots to a separate PDF
+cairo_pdf(
+  filename = "OLR Diagnostics - L2.pdf",
+  onefile = TRUE,
+  width = 11,
+  height = 8.5
+  )
+
+predictors <- c("D1", "D4", "D5", "D6", "L1")
+for (p in predictors) {
+  print(plot(effects::Effect(focal.predictors = c(p), mod = olr1)))
+}
+
+# Interaction effects region
+plot(effects::Effect(focal.predictors = c("D1", "L1"), mod = olr1))
+
+dev.off()
+```
+
+
+## Regression Analysis - Effect of Video
+
+### Linear Regression
+
+To assess the affect of the video on respondent's view on including climate change curricula, we run a multivariate linear regression where the independent variable is the change ($\Delta$) between the response before and after watching the accompanying video. We must treat this as continuous because $\Delta = L3 - L2$. Thus, our regression will be of the form, $$\Delta = \beta_0 + \beta_1D1 + \beta_2D4 + \beta_3D5 + \beta_4D6 + \beta_5L1 + \epsilon$$ where D*X* indicates categorical demographic variables and L*X* indicates ordinal Likert scale variables as previously specified.
+
+The results from the model are output below:
+
+```{r Delta MLR}
+# Model 1 - we treat independent variable as continuous
+mlr.delta <- lm(Delta ~ D1 + D4 + D5 + D6 + L1, data = reg.data)
+
+# Diagnostic plots
+plot(mlr.delta, which = c(1, 2)) 
+
+# Summarize model output
+mlr.delta.table <- broom::tidy(mlr.delta)
+summary(mlr.delta)
+```
+
+Here we see none of the factors in our linear model are significant at the 95% confidence level. However, at the 10% level, $D12$, $D44$, $D52$, and $D54$ are significant.
+
+The output below summarizes the ANOVA of the above model.
+
+```{r Delta MLR ANOVA}
+# Run ANOVA
+mlr.delta.anova <- anova(mlr.delta)
+mlr.delta.anova
+```
+
+Here we see that a respondents age range ($D5$) is the only predictor which significantly (at 90% level) explains any variability in $\Delta$, even after accounting for the variability explained by the previous variables ($D1$ and $D4$).
+
+
+## Test for Significant Difference in Means between $L2$ and $L3$
+
+We want to use a paired test here because we are looking the same measurements from the same respondents at two different points in time. First I will perform and paired t-test.
+
+```{r Test Means}
+
+t.test(as.numeric(reg.data$L3), as.numeric(reg.data$L2), paired = TRUE)
+
+wilcox.test(as.numeric(reg.data$L3), as.numeric(reg.data$L2),
+  paired = TRUE, correct = TRUE, conf.int = TRUE)
+
+```
+
