@@ -256,3 +256,23 @@ wilcox.test(as.numeric(reg.data$L3), as.numeric(reg.data$L2),
 
 ```
 
+
+## Test for Differences in Pre and Post Survey Populations 
+
+```{r Test Pre-Post Differences}
+
+# Wilcox Test
+for (col in colnames(pre)) {
+  
+  result <- wilcox.test(
+    pre[[col]],
+    post[[col]],
+    conf.int = TRUE,
+    correct = TRUE)
+  
+  print(paste(col, ":", result$p.value))
+  
+}
+```
+
+Here we see we fail to reject the null hypothesis, that the distributions are identical, for all the variables shared by the pre and post survey populations.
